@@ -15,31 +15,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract project ZIP
-        shell: bash
+      - name: Extract project
         run: |
           set -e
           ZIP_FILE=$(find . -maxdepth 1 -type f -name '*.zip' | head -n 1)
-
-          if [ -z "$ZIP_FILE" ]; then
-            echo "No project ZIP found."
-            exit 1
-          fi
-
           mkdir -p project
           unzip -q "$ZIP_FILE" -d project
-
-          ROOT=$(find project -name settings.gradle -o -name settings.gradle.kts | head -n 1 | xargs -r dirname)
-
-          if [ -z "$ROOT" ]; then
-            echo "Could not find settings.gradle."
-            exit 1
-          fi
-
+          ROOT=$(find project -name settings.gradle -o -name settings.gradle.kts | head -n 1 | xargs dirname)
           echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Project root: $ROOT"
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
@@ -49,14 +36,14 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build debug APK
-        shell: bash
+      - name: Build APK
+        working-directory: ${{ env.PROJECT_ROOT }}
         run: |
-          cd "$PROJECT_ROOT"
-          gradle :app:assembleDebug --stacktrace
+          gradle :app:assembleDebug --stacktrace --info
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: hokm-local-debug-apk
-          path: "${{ env.PROJECT_ROOT }}/app/build/outputs/apk/debug/app-debug.apk"
+          path: ${{ env.PROJECT_ROOT }}/app/build/outputs/apk/debug/app-debug.apk
